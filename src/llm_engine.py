@@ -8,32 +8,36 @@ local models via llama-cpp-python.
 import os
 from pathlib import Path
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Any, TYPE_CHECKING
 import time
 
 # allows using other model backends if llama-cpp-python is not installed.
 # This will be useful when adding support for additional local models in the future.
 try:
-    from llama_cpp import Llama
+    from llama_cpp import Llama  # type: ignore[import-not-found]
     LLAMA_AVAILABLE = True
 except ImportError:
     Llama = None
     LLAMA_AVAILABLE = False
 
+if TYPE_CHECKING:
+    from llama_cpp import Llama as LlamaType  # type: ignore[import-not-found]
+else:
+    LlamaType = Any
 
 @dataclass
 class GenerationConfig:
     """
     Parameters controlling text generation behavior.
-    
-    These significantly affect negotiation dynamics:
-    - Lower temperature -> more deterministic, predictable responses
-    - Higher temperature -> more creative but potentially incoherent
-    - top_p/top_k -> nucleus and top-k sampling for diversity control
-    - repeat_penalty -> discourages repetitive outputs
-    - stop_sequences -> controls turn boundaries in multi-turn dialogue
+    Attributes:
+        max_tokens: Maximum tokens to generate
+        temperature: Sampling temperature
+        top_p: Nucleus sampling probability mass
+        top_k: Top-K sampling
+        repeat_penalty: Penalty for repeated tokens
+        stop_sequences: List of sequences to stop generation upon   
     """
-    max_tokens: int = 512  # Increased for more detailed responses
+    max_tokens: int = 512 
     temperature: float = 0.7
     top_p: float = 0.95
     top_k: int = 40
@@ -49,14 +53,18 @@ class LLMEngine:
     """
     Singleton wrapper for local LLM inference.
     Currently uses llama-cpp-python.
+    Attributes:
+        model_path: Path to the GGUF model file
+        n_gpu_layers: Number of layers to offload to GPU
+        context_length: Maximum context window size in tokens
     """
     
     _instance: Optional["LLMEngine"] = None
-    _model: Optional[Llama] = None
+    _model: Optional[LlamaType] = None
     _model_path: Optional[str] = None
     
-    def __new__(cls, model_path: Optional[str] = None):
-        """Ensure single instance across the application."""
+    def __new__(cls, *args, **kwargs):
+        """Ensure a single instance across the application."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
@@ -69,7 +77,6 @@ class LLMEngine:
     ):
         """
         Initialize or reconfigure the engine.
-        
         Args:
             model_path: Path to GGUF model file. If None, searches default locations.
             n_gpu_layers: Layers to offload to GPU. -1 means all.
@@ -102,7 +109,7 @@ class LLMEngine:
             "or specify a model_path."
         )
     
-    def _ensure_loaded(self) -> "Llama":
+    def _ensure_loaded(self) -> LlamaType:
         """Lazy-load the model on first use."""
         if not LLAMA_AVAILABLE:
             raise ImportError(
@@ -142,12 +149,10 @@ class LLMEngine:
     ) -> str:
         """
         Generate a response given conversation history.
-        
         Args:
             messages: Chat history in OpenAI format
             config: Generation parameters (uses defaults if None)
-            retry_attempts: Number of retries on empty/failed generation
-            
+            retry_attempts: Number of retries on empty/failed generation            
         Returns:
             Generated text response
         """
@@ -186,10 +191,7 @@ class LLMEngine:
     @classmethod
     def generate_response(cls, messages: list[dict]) -> str:
         """
-        Class method for backward compatibility.
-        
         Creates/uses singleton instance with default settings.
-        
         Args:
             messages: Chat history in OpenAI format
         Returns:
@@ -201,7 +203,6 @@ class LLMEngine:
     def set_default_config(self, config: GenerationConfig) -> None:
         """
         Update default generation parameters.
-        
         Args:
             config: New default configuration to apply
         """
@@ -211,11 +212,7 @@ class LLMEngine:
     
     @classmethod
     def reset(cls) -> None:
-        """
-        Reset the singleton instance and unload the model.
-        
-        Useful for testing or switching to a different model configuration.
-        """
+        """Reset the singleton instance and unload the model."""
         if cls._instance and cls._model:
             cls._instance.unload()
         cls._instance = None
@@ -224,7 +221,11 @@ class LLMEngine:
     
     @property
     def model_name(self) -> str:
-        """Extract model name from path for logging."""
+        """
+        Extract model name from path for logging.
+         Returns:
+            Model name string
+         """
         if self._model_path:
             return Path(self._model_path).stem
         return "unknown"
