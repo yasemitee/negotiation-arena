@@ -156,7 +156,14 @@ class SoukMarketScenario(NegotiationScenario):
         return "You are in a souk. The Vendor should open with a price."
 
     def compute_utility(self, agent_config: AgentConfig, outcome: dict) -> float:
-        if outcome is None or "price" not in compute_utility:
+        """
+        Compute utility based on final agreed price.
+        Args:
+            agent_config: The configuration of the agent
+            outcome: The final negotiation outcome
+        Returns:
+            Utility value as float"""
+        if outcome is None or "price" not in outcome:
             return 0.0
         price = float(outcome["price"])
         role = agent_config.role.lower()
