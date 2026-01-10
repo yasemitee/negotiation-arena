@@ -63,20 +63,44 @@ def run_negotiation(scenario, vendor_config, buyer_config, verbose=True):
         print(f"[System] {opening}\n")
     
     current_proposal = None
+    current_proposer = None
     outcome = {"agreed": False, "reason": "timeout"}
     proposals = []
+    signals = []
+    last_buyer_message = None
     
+    rounds_executed = 0
     for round_num in range(scenario.max_rounds):
+        rounds_executed = round_num + 1
         if verbose:
             print(f"--- Round {round_num + 1} ---")
-        
-        response_v = vendor.respond()
+
+        vendor_context = scenario.get_vendor_system_addendum(vendor_config.name, last_buyer_message)
+        signals.append({
+            "round": round_num + 1,
+            "buyer_message": last_buyer_message,
+            "buyer_type_estimate": vendor_context["estimate"],
+            "opening_target": vendor_context["opening_target"],
+            "concession_factor": vendor_context["concession_factor"],
+        })
+
+        response_v = vendor.respond_with_system_addendum(vendor_context["addendum"])
         if verbose:
             print(f"[Vendor]: {response_v}\n")
+
+        if current_proposal and current_proposer == buyer_config.name:
+            if scenario.check_agreement(current_proposal, response_v):
+                outcome = {"agreed": True, "reason": "agreement", "final_proposal": current_proposal}
+                break
+
+        if scenario.check_rejection(response_v) and not scenario.parse_proposal(response_v):
+            outcome = {"agreed": False, "reason": "rejected"}
+            break
         
         proposal = scenario.parse_proposal(response_v)
         if proposal:
             current_proposal = proposal
+            current_proposer = vendor_config.name
             proposals.append({
                 "round": round_num + 1,
                 "agent": vendor_config.name,
@@ -87,23 +111,27 @@ def run_negotiation(scenario, vendor_config, buyer_config, verbose=True):
         response_b = buyer.respond()
         if verbose:
             print(f"[Buyer]: {response_b}\n")
-        
-        if current_proposal and scenario.check_agreement(current_proposal, response_b):
-            outcome = {"agreed": True, "reason": "agreement", "final_proposal": current_proposal}
-            break
-        
-        if scenario.check_rejection(response_b):
-            counter = scenario.parse_proposal(response_b)
-            if counter:
-                current_proposal = counter
-                proposals.append({
-                    "round": round_num + 1,
-                    "agent": buyer_config.name,
-                    "proposal": counter
-                })
-            else:
-                outcome = {"agreed": False, "reason": "rejected"}
+
+        if current_proposal and current_proposer == vendor_config.name:
+            if scenario.check_agreement(current_proposal, response_b):
+                outcome = {"agreed": True, "reason": "agreement", "final_proposal": current_proposal}
                 break
+
+        last_buyer_message = response_b
+
+        counter = scenario.parse_proposal(response_b)
+        if counter:
+            current_proposal = counter
+            current_proposer = buyer_config.name
+            proposals.append({
+                "round": round_num + 1,
+                "agent": buyer_config.name,
+                "proposal": counter
+            })
+
+        if scenario.check_rejection(response_b) and not counter:
+            outcome = {"agreed": False, "reason": "rejected"}
+            break
         
         vendor.receive(response_b)
     
@@ -155,7 +183,9 @@ def run_negotiation(scenario, vendor_config, buyer_config, verbose=True):
         "outcome": outcome,
         "utilities": utilities,
         "proposals": proposals,
-        "dialogue": all_turns
+        "dialogue": all_turns,
+        "signals": signals,
+        "metrics": {"rounds_executed": rounds_executed},
     }
 
 
@@ -176,6 +206,15 @@ def main():
             "true_market_value": 120.0,
             "vendor_min_price": 80.0,
             "buyer_estimate": 100.0,
+            "local_opening_markup": getattr(scenario, "local_opening_markup", None),
+            "tourist_opening_markup": getattr(scenario, "tourist_opening_markup", None),
+            "tourist_concession_factor": getattr(scenario, "tourist_concession_factor", None),
+            "buyer_type_noise": getattr(scenario, "buyer_type_noise", None),
+            "local_fairness_band": getattr(scenario, "local_fairness_band", None),
+            "tourist_overpay_tolerance": getattr(scenario, "tourist_overpay_tolerance", None),
+            "enable_buyer_profile_constraints": getattr(scenario, "enable_buyer_profile_constraints", None),
+            "enable_buyer_protocol_guidance": getattr(scenario, "enable_buyer_protocol_guidance", None),
+            "enable_vendor_buyer_type_pricing": getattr(scenario, "enable_vendor_buyer_type_pricing", None),
             "max_rounds": 8,
             "total_runs": args.runs
         })
@@ -201,7 +240,8 @@ def main():
                 dialogue=result["dialogue"],
                 outcome=result["outcome"],
                 utilities=result["utilities"],
-                proposals=result["proposals"]
+                proposals=result["proposals"],
+                signals=result.get("signals"),
             )
     
     if logger:

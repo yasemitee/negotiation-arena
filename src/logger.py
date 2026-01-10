@@ -37,7 +37,8 @@ class NegotiationLogger:
         dialogue: list[dict],
         outcome: dict,
         utilities: dict,
-        proposals: list[dict]
+        proposals: list[dict],
+        signals: Optional[list[dict]] = None,
     ) -> None:
         """
         Log a single negotiation run.
@@ -49,6 +50,7 @@ class NegotiationLogger:
             outcome: Final outcome (agreed, reason, proposal)
             utilities: Utility scores for each agent
             proposals: All proposals made during negotiation
+            signals: Optional list of per-round signals for analysis
         """
         self.run_counter += 1
         run_id = f"run_{self.run_counter:03d}"
@@ -60,10 +62,11 @@ class NegotiationLogger:
             "agents": agent_configs,
             "dialogue": dialogue,
             "proposals": proposals,
+            "signals": signals or [],
             "outcome": outcome,
             "utilities": utilities,
             "metrics": {
-                "rounds": len(dialogue) // 2,
+                "rounds": len(signals) if signals is not None else len(dialogue) // 2,
                 "agreed": outcome.get("agreed", False),
                 "total_turns": len(dialogue)
             }

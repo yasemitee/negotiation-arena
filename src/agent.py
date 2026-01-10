@@ -96,8 +96,28 @@ class NegotiationAgent:
         """
         if self.verbose:
             print(f"   [{self.name}] thinking...")
-        
+
         response = self.engine.generate(self.history_for_llm)
+        self._turns.append(Turn(role="agent", content=response))
+        return response
+
+    def respond_with_system_addendum(self, system_addendum: Optional[str]) -> str:
+        """Generate a response while injecting a temporary system addendum.
+        Args:
+            system_addendum: Extra system instructions to prepend for this turn
+        Returns:
+            Generated response string
+        """
+        if self.verbose:
+            print(f"   [{self.name}] thinking...")
+
+        messages = self.history_for_llm
+        if system_addendum and system_addendum.strip():
+            messages = messages.copy()
+            insert_at = 1 if messages and messages[0].get("role") == "system" else 0
+            messages.insert(insert_at, {"role": "system", "content": system_addendum.strip()})
+
+        response = self.engine.generate(messages)
         self._turns.append(Turn(role="agent", content=response))
         return response
     
