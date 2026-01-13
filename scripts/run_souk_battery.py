@@ -227,76 +227,77 @@ def main() -> None:
                 ]
             )
     else:
-        conditions.extend(
-            [
-                (
-                    "final_tourist_baseline",
-                    {
-                        **base,
-                        "enable_vendor_buyer_type_pricing": False,
-                        "enable_buyer_profile_constraints": False,
-                        "enable_buyer_protocol_guidance": False,
-                        "buyer_type_noise": 0.0,
-                    },
-                    "tourist",
-                ),
-                (
-                    "final_local_baseline",
-                    {
-                        **base,
-                        "enable_vendor_buyer_type_pricing": False,
-                        "enable_buyer_profile_constraints": False,
-                        "enable_buyer_protocol_guidance": False,
-                        "buyer_type_noise": 0.0,
-                    },
-                    "local",
-                ),
-                (
-                    "final_tourist_vendor_only",
-                    {
-                        **base,
-                        "enable_vendor_buyer_type_pricing": True,
-                        "enable_buyer_profile_constraints": False,
-                        "enable_buyer_protocol_guidance": False,
-                        "buyer_type_noise": 0.0,
-                    },
-                    "tourist",
-                ),
-                (
-                    "final_local_constraints_only",
-                    {
-                        **base,
-                        "enable_vendor_buyer_type_pricing": False,
-                        "enable_buyer_profile_constraints": True,
-                        "enable_buyer_protocol_guidance": False,
-                        "buyer_type_noise": 0.0,
-                    },
-                    "local",
-                ),
-                (
-                    "final_tourist_noisy_full",
-                    {
-                        **base,
-                        "enable_vendor_buyer_type_pricing": True,
-                        "enable_buyer_profile_constraints": True,
-                        "enable_buyer_protocol_guidance": True,
-                        "buyer_type_noise": 0.3,
-                    },
-                    "tourist",
-                ),
-                (
-                    "final_local_full",
-                    {
-                        **base,
-                        "enable_vendor_buyer_type_pricing": True,
-                        "enable_buyer_profile_constraints": True,
-                        "enable_buyer_protocol_guidance": True,
-                        "buyer_type_noise": 0.0,
-                    },
-                    "local",
-                ),
-            ]
-        )
+        for profile in ["tourist", "local"]:
+            conditions.extend(
+                [
+                    (
+                        f"final_{profile}_baseline",
+                        {
+                            **base,
+                            "enable_vendor_buyer_type_pricing": False,
+                            "enable_buyer_profile_constraints": False,
+                            "enable_buyer_protocol_guidance": False,
+                            "buyer_type_noise": 0.0,
+                        },
+                        profile,
+                    ),
+                    (
+                        f"final_{profile}_vendor_only",
+                        {
+                            **base,
+                            "enable_vendor_buyer_type_pricing": True,
+                            "enable_buyer_profile_constraints": False,
+                            "enable_buyer_protocol_guidance": False,
+                            "buyer_type_noise": 0.0,
+                        },
+                        profile,
+                    ),
+                    (
+                        f"final_{profile}_constraints_only",
+                        {
+                            **base,
+                            "enable_vendor_buyer_type_pricing": False,
+                            "enable_buyer_profile_constraints": True,
+                            "enable_buyer_protocol_guidance": False,
+                            "buyer_type_noise": 0.0,
+                        },
+                        profile,
+                    ),
+                    (
+                        f"final_{profile}_guidance_only",
+                        {
+                            **base,
+                            "enable_vendor_buyer_type_pricing": False,
+                            "enable_buyer_profile_constraints": False,
+                            "enable_buyer_protocol_guidance": True,
+                            "buyer_type_noise": 0.0,
+                        },
+                        profile,
+                    ),
+                    (
+                        f"final_{profile}_full",
+                        {
+                            **base,
+                            "enable_vendor_buyer_type_pricing": True,
+                            "enable_buyer_profile_constraints": True,
+                            "enable_buyer_protocol_guidance": True,
+                            "buyer_type_noise": 0.0,
+                        },
+                        profile,
+                    ),
+                    (
+                        f"final_{profile}_noisy_full",
+                        {
+                            **base,
+                            "enable_vendor_buyer_type_pricing": True,
+                            "enable_buyer_profile_constraints": True,
+                            "enable_buyer_protocol_guidance": True,
+                            "buyer_type_noise": 0.3,
+                        },
+                        profile,
+                    ),
+                ]
+            )
 
     for condition_name, scenario_kwargs, buyer_profile in conditions:
         scenario = SoukMarketScenario(**scenario_kwargs)
