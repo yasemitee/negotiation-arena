@@ -91,7 +91,7 @@ class LLMEngine:
         self._default_config = GenerationConfig()
     
     def _find_model(self) -> str:
-        """Locate model file in models directory."""
+        """Locate model file in models directory. Prefers Llama-3 if available."""
         search_paths = [
             Path.cwd() / "models",
             Path.home() / ".cache" / "llama_models",
@@ -100,8 +100,12 @@ class LLMEngine:
         
         for base in search_paths:
             if base.exists():
-                gguf_files = list(base.glob("*.gguf"))
+                gguf_files = sorted(base.glob("*.gguf"))
                 if gguf_files:
+                    # Prefer Llama-3
+                    for f in gguf_files:
+                        if "llama" in f.name.lower():
+                            return str(f)
                     return str(gguf_files[0])
         
         raise FileNotFoundError(
