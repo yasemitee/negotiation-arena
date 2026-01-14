@@ -121,9 +121,7 @@ class HeistScenario(NegotiationScenario):
         self.enable_withdrawal_threats = bool(enable_withdrawal_threats)
         self.minimum_viable_share = float(minimum_viable_share)
         self.greed_factor = float(greed_factor)
-        # Per-agent configuration
         self._agent_params: dict[str, dict] = {}
-        # Track negotiation state
         self._withdrawal_count: int = 0
         self._proposals_history: list[dict] = []
 
@@ -182,7 +180,6 @@ class HeistScenario(NegotiationScenario):
         name = agent_config.name
         params = self._agent_params.get(name, {})
         
-        # Get contribution role info
         role_key = params.get("contribution_role", "support")
         role_info = self.CONTRIBUTION_ROLES.get(role_key, self.CONTRIBUTION_ROLES["support"])
         
@@ -191,7 +188,6 @@ class HeistScenario(NegotiationScenario):
         reservation = params.get("reservation_share", self.minimum_viable_share)
         aspiration = params.get("aspiration_share", 30.0)
         
-        # Get other crew members for context
         other_agents = [n for n in self._agent_params.keys() if n != name]
         crew_context = ""
         if other_agents:
@@ -202,7 +198,6 @@ class HeistScenario(NegotiationScenario):
                 crew_roles.append(f"{other} ({other_role})")
             crew_context = f"\nOther crew members: {', '.join(crew_roles)}."
         
-        # Build persona traits
         persona_text = ""
         if agent_config.persona_traits:
             traits = ", ".join(agent_config.persona_traits)
@@ -261,7 +256,6 @@ class HeistScenario(NegotiationScenario):
         - Use withdrawal threats strategically and sparingly.
         """
 
-        # Build list of agent names for format example
         agent_names = list(self._agent_params.keys())
         if len(agent_names) >= 2:
             format_example = ", ".join([f"{name}: X%" for name in agent_names])
@@ -313,11 +307,9 @@ class HeistScenario(NegotiationScenario):
         
         proposal = {}
         
-        # Pattern 1: Name: X% or Name gets X% or Name - X% or Name → X%
         pattern1 = r"([A-Za-z_][A-Za-z0-9_]*)\s*(?::|gets|receives|-|→)\s*(\d+(?:\.\d+)?)\s*%?"
         for match in re.finditer(pattern1, message, re.IGNORECASE):
             name, share = match.groups()
-            # Skip common words that aren't names
             if name.lower() in {'i', 'we', 'you', 'the', 'a', 'an', 'my', 'our', 'your', 'split', 'here', 'proposal'}:
                 continue
             try:
@@ -325,14 +317,13 @@ class HeistScenario(NegotiationScenario):
             except ValueError:
                 continue
         
-        # Pattern 2: X% for Name or X% to Name
         pattern2 = r"(\d+(?:\.\d+)?)\s*%?\s*(?:for|to)\s+([A-Za-z_][A-Za-z0-9_]*)"
         for match in re.finditer(pattern2, message, re.IGNORECASE):
             share, name = match.groups()
             if name.lower() in {'i', 'we', 'you', 'the', 'a', 'an', 'my', 'our', 'your'}:
                 continue
             try:
-                if name not in proposal:  # Don't overwrite pattern1 matches
+                if name not in proposal:
                     proposal[name] = float(share)
             except ValueError:
                 continue
@@ -340,7 +331,6 @@ class HeistScenario(NegotiationScenario):
         if not proposal:
             return None
         
-        # Store in history if valid proposal
         if has_proposal_marker or len(proposal) >= 2:
             self._proposals_history.append(proposal)
         
@@ -386,7 +376,6 @@ class HeistScenario(NegotiationScenario):
         if len(common_keys) < 2:
             return False
         
-        # Check if values are within tolerance for common keys
         for key in common_keys:
             if abs(p1[key] - p2[key]) > tolerance:
                 return False
